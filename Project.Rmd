@@ -1,0 +1,38 @@
+---
+title: "Reg-Project"
+author: "Alayna Baker"
+date: "2024-03-07"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+setwd("/Users/alaynabaker/Downloads")
+data0 <- read.csv("diabetes_prediction_dataset.csv")
+
+data0$gender <- ifelse(data0$gender == "male", 0, 1)
+
+# recoding 
+data1 <- data0 %>% mutate(smoking_history=recode(smoking_history, 
+                                              "No Info" = 0,
+                                               "never" = 1, 
+                                               "not current" = 2, 
+                                               "former" = 3,
+                                               "current" = 4, 
+                                               "ever" = 5 ))
+# visualizing data 
+head(data1)
+summary(data1)
+
+# first linear regression model 
+model0 <- lm(diabetes ~., data=data1)
+summary(model0)
+
+# how many people have hba1c > 6.5 (definition of diabetes) but aren't flagged for diabetes? 
+diab <- subset(data1, HbA1c_level >= 6.5 & diabetes == 0)
+nrow(diab)
+
+```
+
+
+
