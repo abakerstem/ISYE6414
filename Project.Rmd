@@ -10,7 +10,7 @@ library(dplyr)
 setwd("/Users/alaynabaker/Downloads")
 data0 <- read.csv("diabetes_prediction_dataset.csv")
 
-data0$gender <- ifelse(data0$gender == "male", 0, 1)
+data0$gender <- ifelse(data0$gender == "Male", 0, 1)
 
 # recoding 
 data1 <- data0 %>% mutate(smoking_history=recode(smoking_history, 
