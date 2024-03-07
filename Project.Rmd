@@ -12,7 +12,8 @@ data0 <- read.csv("diabetes_prediction_dataset.csv")
 
 data0$gender <- ifelse(data0$gender == "Male", 0, 1)
 
-# recoding 
+# recoding smoking_history to be numerical 
+# should maybe recode No Info to be N/A instead of 0? 
 data1 <- data0 %>% mutate(smoking_history=recode(smoking_history, 
                                               "No Info" = 0,
                                                "never" = 1, 
