@@ -35,5 +35,18 @@ nrow(diab)
 
 ```
 
+```{r}
+# visualizing data 
+par(mfrow = c(2,2))
+plot(data1$gender, data1$diabetes,main="Gender Against Diabetes", xlab="Gender", ylab="Diabetes")
+plot(data1$age,data1$diabetes, main="Age Against Diabetes", xlab="Age", ylab="Diabetes")
+plot(data1$hypertension, data1$diabetes,main="Hypertension Against Diabetes", xlab="Hypertension", ylab="Diabetes")
+plot(data1$heart_disease,data1$diabetes, main="Heart Disease Against Diabetes", xlab="Heart Disease", ylab="Diabetes")
+plot(data1$smoking_history,data1$diabetes, main="Smoking History Against Diabetes", xlab="Smoking History", ylab="Diabetes")
+plot(data1$bmi,data1$diabetes, main="BMI Against Diabetes", xlab="BMI", ylab="Diabetes")
+plot(data1$HbA1c_level,data1$diabetes, main="HbA1c Against Diabetes", xlab="Hba1c", ylab="Diabetes")
+plot(data1$blood_glucose_level, data1$diabetes,main="Blood Glucose Level Against Diabetes", xlab="Blood Glucose Level", ylab="Diabetes")
+```
+
 
 
