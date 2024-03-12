@@ -7,13 +7,12 @@ output: html_document
 
 ```{r}
 library(dplyr)
-setwd("/Users/alaynabaker/Downloads")
+setwd("/Users/alaynabaker/Downloads/Regression")
 data0 <- read.csv("diabetes_prediction_dataset.csv")
 
 data0$gender <- ifelse(data0$gender == "Male", 0, 1)
 
-# recoding smoking_history to be numerical 
-# should maybe recode No Info to be N/A instead of 0? 
+# recoding 
 data1 <- data0 %>% mutate(smoking_history=recode(smoking_history, 
                                               "No Info" = 0,
                                                "never" = 1, 
@@ -25,6 +24,10 @@ data1 <- data0 %>% mutate(smoking_history=recode(smoking_history,
 head(data1)
 summary(data1)
 
+```
+
+
+```{r}
 # first linear regression model 
 model0 <- lm(diabetes ~., data=data1)
 summary(model0)
@@ -33,6 +36,188 @@ summary(model0)
 diab <- subset(data1, HbA1c_level >= 6.5 & diabetes == 0)
 nrow(diab)
 
+```
+
+```{r}
+# more data description: 
+
+data2 <- subset(data1, age >= 30)
+# how many data points? 
+nrow(data2)
+
+# is any of the data correlated? 
+cor(data2[,1:8])
+
+# how many people have diabetes? 
+diabetes <- subset(data2, diabetes == 1)
+nrow(diabetes) / nrow(data2)
+
+nodiabetes <- subset(data2, diabetes == 0)
+nrow(nodiabetes) / nrow(data2)
+
+data2 %>% 
+  group_by(diabetes) %>%
+  summarise_all(mean)
+
+# what does this look like? 
+```
+
+```{r}
+# first linear regression model : R^2 = 39.79
+model0 <- lm(diabetes ~., data=data2)
+summary(model0)
+
+# first (b) linear regression model - taking out blood glucose level : R^2 = 27.64
+model0b <- lm(diabetes ~ gender + age + hypertension + heart_disease + smoking_history + HbA1c_level + bmi, data=data2)
+summary(model0b)
+
+# first (c) linear regression model - taking out hba2c instead of blood glucose : R^2 = 28.35
+model0c <- lm(diabetes ~ gender + age + hypertension + heart_disease + smoking_history + blood_glucose_level + bmi, data=data2)
+summary(model0c)
+
+# first (d) linear regression model - taking out smoking history : R^2 = 39.67
+model0d <- lm(diabetes ~ gender + age + hypertension + heart_disease + HbA1c_level + blood_glucose_level + bmi, data=data2)
+summary(model0d)
+
+# second linear regression model : R^2 = 39.79
+model1 <- lm(diabetes ~., data=data2)
+summary(model1)
+
+# take out outliers with cooks distance 
+cooksD <- cooks.distance(model1)
+cooksD[which.max(cooksD)]
+
+# plotting cooksD line - FIRST VERSION w/ 4 standard deviations
+plot(cooksD, type="b", col="red")
+N = nrow(data2)
+df <- ncol(data2)
+cutoff = 4/(N - df)
+abline(h=cutoff, lty=2)
+
+influential <- cooksD[cooksD > cutoff]
+names_of_influential <- names(influential)
+
+# taking out outliers 
+temp <- data2[names_of_influential, ]
+data3 <- data2 %>% anti_join(temp)
+
+
+# third linear regression model - cooksD0: R^2 = 37.3
+model2 <- lm(diabetes ~., data=data3)
+summary(model2)
+
+# plotting cooksD line - SECOND VERSION w/ 10 standard deviations
+plot(cooksD, type="b", col="red")
+N = nrow(data2)
+df <- ncol(data2)
+cutoff = 10/(N - df)
+abline(h=cutoff, lty=2)
+
+influential <- cooksD[cooksD > cutoff]
+names_of_influential <- names(influential)
+
+# taking out outliers 
+temp <- data2[names_of_influential, ]
+data3 <- data2 %>% anti_join(temp)
+
+
+# third linear regression model - cooksD0: R^2 = 40.55
+model3 <- lm(diabetes ~., data=data3)
+summary(model3)
+
+library(car)
+par(mfrow=c(2,2))
+qqPlot(model2$residuals, ylab="Residuals")
+qqPlot(model3$residuals, ylab="Residuals")
+
+```
+```{r}
+# SPLITTING DATA INTO TRAINING TEST 
+set.seed(123)
+sample <- sample(c(TRUE,FALSE), nrow(data3), replace=TRUE, prob=c(0.8, 0.2))
+train <- data3[sample,]
+test <- data3[!sample,]
+
+
+# TRAINING using third linear regression model - cooksD0: R^2 = 40.55
+train_model <- lm(diabetes ~., data=train)
+summary(train_model)
+
+# taking out heart disease b/c p-value > 0.01: R^2 = 40.54
+train_model1 <- lm(diabetes ~ gender + age + hypertension + smoking_history + bmi + HbA1c_level + blood_glucose_level, data=train)
+summary(train_model1)
+
+# qq plot for train_model1
+library(car)
+par(mfrow=c(2,2))
+qqPlot(train_model$residuals, ylab="Residuals")
+qqPlot(train_model1$residuals, ylab="Residuals")
+
+```
+
+```{r}
+
+# PREDICTING USING TRAIN_MODEL1
+pred0 <- predict(train_model1, newdata=test)
+
+lm_actual_pred <- data.frame(cbind(actuals=test$diabetes, predictions=pred0, diff = abs(test$diabetes - pred0)))
+head(lm_actual_pred)
+summary(lm_actual_pred)
+
+plot(lm_actual_pred$predictions, lm_actual_pred$actuals, xlab = "Predicted", ylab = "Observed", main="Linear Regression Prediction Performance")
+abline(a=0, b=1)
+```
+```{r}
+# GOING BACK TO CHANGING LINEAR MODEL - ADDING SECOND ORDER & INTERACTION 
+
+# fourth linear regression model - second order: R^2 = 41.2
+model4 <- lm(diabetes ~ gender + age + hypertension + smoking_history + bmi + HbA1c_level + blood_glucose_level + heart_disease + (hypertension)^2 + (HbA1c_level)^2 + (hypertension)*(HbA1c_level), data=data3)
+summary(model4)
+
+# fifth linear regression model - taking out heart disease again: R^2 = 41.23
+model5 <- lm(diabetes ~ gender + age + hypertension + smoking_history + bmi + HbA1c_level + blood_glucose_level + (hypertension)^2 + (HbA1c_level)^2 + (hypertension)*(HbA1c_level), data=data3)
+summary(model5)
+
+# TRAINING USING FIFTH LINEAR MODEL 
+train_model2 <- lm(diabetes ~ gender + age + hypertension + smoking_history + bmi + HbA1c_level + blood_glucose_level + (hypertension)^2 + (HbA1c_level)^2 + (hypertension)*(HbA1c_level), data=train)
+summary(train_model2)
+```
+
+```{r}
+# LINEAR MODEL - STEPWISE REGRESSION
+step_model <- step(lm(diabetes~., data=data3), direction="forward")
+step_model2 <- step(lm(diabetes~., data=data3), direction="backward")
+step_model3 <- step(lm(diabetes~., data=data3), direction="both")
+
+# models showed no change - included all variables
+# AIC = -190903.4 -> be sure to mention why negative AIC isn't bad in the paper
+
+```
+
+```{r}
+# # Plot residuals
+# lm_residuals <- abs(lm_pred - test$chol_mg_dl)
+# rf_residuals <- abs(chol_rf_pred - test$chol_mg_dl)
+# plot(test$chol_mg_dl, lm_residuals, col = "red", xlab = "TC", ylab = "Residuals", main = "Residuals of Linear Regression vs. Random Forest")
+# points(test$chol_mg_dl, rf_residuals, col = "green")
+# 
+# together <- data.frame(lm_pred, chol_rf_pred, test$chol_mg_dl, lm_residuals, rf_residuals)
+# lm_better <- subset(together, lm_residuals < rf_residuals)
+# nrow(lm_better)
+# rf_better <- subset(together, lm_residuals > rf_residuals)
+# nrow(rf_better)
+# 
+# head(together)
+# 
+# legend("top", legend = c("Linear Regression", "Random Forest"), col = c("red", "green"), pch=1, inset=0, xpd = TRUE, y.intersp = 1)
+```
+
+```{r}
+# how many people have diabetes? 
+diabetes <- subset(data3, diabetes == 1)
+nrow(diabetes) / nrow(data3)
+nodiabetes <- subset(data3, diabetes == 0)
+nrow(nodiabetes) / nrow(data3)
 ```
 
 ```{r}
@@ -47,6 +232,3 @@ plot(data1$bmi,data1$diabetes, main="BMI Against Diabetes", xlab="BMI", ylab="Di
 plot(data1$HbA1c_level,data1$diabetes, main="HbA1c Against Diabetes", xlab="Hba1c", ylab="Diabetes")
 plot(data1$blood_glucose_level, data1$diabetes,main="Blood Glucose Level Against Diabetes", xlab="Blood Glucose Level", ylab="Diabetes")
 ```
-
-
-
