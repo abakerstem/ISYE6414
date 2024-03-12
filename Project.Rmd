@@ -132,6 +132,24 @@ qqPlot(model3$residuals, ylab="Residuals")
 
 ```
 ```{r}
+
+library(DHARMa)
+
+# goodness of fit of the model - normality, histo, residual v. x, residual v. fitted plots
+par(mfrow=c(2,2))
+
+res <- simulateResiduals(model3)
+plot(res)
+plot(data3$diabetes, resid(model3), main="Predictor vs Residuals", ylab = "Model Residuals", xlab = "Diabetes")
+abline(0,0)
+plot(fitted(model3), resid(model3),main="Fitted vs Residuals", xlab="Fitted Values", ylab = "Model Residuals")
+abline(0,0)
+qqnorm(resid(model3), main="QQ-Plot of Residuals")
+qqline(resid(model3))
+hist(resid(model3),main="Histogram of Residuals", xlab = "Model Residuals")
+```
+
+```{r}
 # SPLITTING DATA INTO TRAINING TEST 
 set.seed(123)
 sample <- sample(c(TRUE,FALSE), nrow(data3), replace=TRUE, prob=c(0.8, 0.2))
@@ -194,6 +212,10 @@ step_model3 <- step(lm(diabetes~., data=data3), direction="both")
 
 ```
 
+
+
+
+
 ```{r}
 # # Plot residuals
 # lm_residuals <- abs(lm_pred - test$chol_mg_dl)
@@ -212,6 +234,7 @@ step_model3 <- step(lm(diabetes~., data=data3), direction="both")
 # legend("top", legend = c("Linear Regression", "Random Forest"), col = c("red", "green"), pch=1, inset=0, xpd = TRUE, y.intersp = 1)
 ```
 
+
 ```{r}
 # how many people have diabetes? 
 diabetes <- subset(data3, diabetes == 1)
@@ -220,15 +243,22 @@ nodiabetes <- subset(data3, diabetes == 0)
 nrow(nodiabetes) / nrow(data3)
 ```
 
+
+
+
 ```{r}
-# visualizing data 
+
+# visualizing data against response variable 
 par(mfrow = c(2,2))
-plot(data1$gender, data1$diabetes,main="Gender Against Diabetes", xlab="Gender", ylab="Diabetes")
-plot(data1$age,data1$diabetes, main="Age Against Diabetes", xlab="Age", ylab="Diabetes")
-plot(data1$hypertension, data1$diabetes,main="Hypertension Against Diabetes", xlab="Hypertension", ylab="Diabetes")
-plot(data1$heart_disease,data1$diabetes, main="Heart Disease Against Diabetes", xlab="Heart Disease", ylab="Diabetes")
-plot(data1$smoking_history,data1$diabetes, main="Smoking History Against Diabetes", xlab="Smoking History", ylab="Diabetes")
-plot(data1$bmi,data1$diabetes, main="BMI Against Diabetes", xlab="BMI", ylab="Diabetes")
-plot(data1$HbA1c_level,data1$diabetes, main="HbA1c Against Diabetes", xlab="Hba1c", ylab="Diabetes")
-plot(data1$blood_glucose_level, data1$diabetes,main="Blood Glucose Level Against Diabetes", xlab="Blood Glucose Level", ylab="Diabetes")
+boxplot(data2$diabetes, data2$gender, main="Gender Against Diabetes", xlab="Gender", ylab="Diabetes")
+boxplot(data2$age,data2$diabetes, main="Age Against Diabetes", xlab="Age", ylab="Diabetes")
+boxplot(data2$hypertension, data2$diabetes,main="Hypertension Against Diabetes", xlab="Hypertension", ylab="Diabetes")
+boxplot(data2$heart_disease,data2$diabetes, main="Heart Disease Against Diabetes", xlab="Heart Disease", ylab="Diabetes")
+boxplot(data2$smoking_history,data2$diabetes, main="Smoking History Against Diabetes", xlab="Smoking History", ylab="Diabetes")
+boxplot(data2$bmi,data2$diabetes, main="BMI Against Diabetes", xlab="BMI", ylab="Diabetes")
+boxplot(data2$HbA1c_level,data2$diabetes, main="HbA1c Against Diabetes", xlab="Hba1c", ylab="Diabetes")
+boxplot(data2$blood_glucose_level, data2$diabetes,main="Blood Glucose Level Against Diabetes", xlab="Blood Glucose Level", ylab="Diabetes")
+
+
+# visualizing predictors against each other 
 ```
