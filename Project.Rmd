@@ -1,264 +1,216 @@
 ---
-title: "Reg-Project"
+title: "Even Newer Project"
 author: "Alayna Baker"
-date: "2024-03-07"
+date: "2024-04-12"
 output: html_document
 ---
 
 ```{r}
+
+# STRUCTURE: 
+# 1. data description 
+# 2. pre-preprocessing data
+# 3. visuals (histograms and boxplots)
+# 4. multicollinearity plot
+# 5. model fitting
+# 6. cook's distance (outliers)
+# 7. model comparisons (AIC, BIC, variable significance)
+# 8. goodness of fit (overall, pearson, deviance)
+# 9. multicollinearity (w/ our final model)
+# 10. prediction 
+# 11. interpret prediction
+# 
+# # THINGS TO ADD 
+# - COOKS DISTANCE
+
+```
+
+
+```{r}
+
+############ DATA DESCRIPTION ############
+
 library(dplyr)
 setwd("/Users/alaynabaker/Downloads/Regression")
-data0 <- read.csv("diabetes_prediction_dataset.csv")
+glm_data0 <- read.csv("diabetes_prediction_dataset.csv")
+head(glm_data0)
+attach(glm_data0)
 
-data0$gender <- ifelse(data0$gender == "Male", 0, 1)
-
+glm_data0$gender <- ifelse(glm_data0$gender == "Male", 0, ifelse(glm_data0$gender == "Female", 1, 2))
 # recoding 
-data1 <- data0 %>% mutate(smoking_history=recode(smoking_history, 
-                                              "No Info" = 0,
-                                               "never" = 1, 
-                                               "not current" = 2, 
-                                               "former" = 3,
-                                               "current" = 4, 
-                                               "ever" = 5 ))
-# visualizing data 
-head(data1)
-summary(data1)
+glm_data0$smoking_history <- factor(glm_data0$smoking_history)
 
-```
+# subset data to 40 and older
+glm_data0 <- subset(glm_data0, age >= 30)
 
+# taking out smoking_history = "no info"
+glm_data0 <- subset(glm_data0, smoking_history != "No Info")
 
-```{r}
-# first linear regression model 
-model0 <- lm(diabetes ~., data=data1)
-summary(model0)
-
-# how many people have hba1c > 6.5 (definition of diabetes) but aren't flagged for diabetes? 
-diab <- subset(data1, HbA1c_level >= 6.5 & diabetes == 0)
-nrow(diab)
+head(glm_data0)
+summary(glm_data0)
 
 ```
 
 ```{r}
-# more data description: 
+# VISUALIZING DATA 
 
-data2 <- subset(data1, age >= 30)
-# how many data points? 
-nrow(data2)
+# PLOTTING VARIABLES
+library(ggplot2)
+library(corrplot)
+library(dplyr)
 
-# is any of the data correlated? 
-cor(data2[,1:8])
+par(mfrow = c(1,2))
+glm_data0$diabetes <- factor(glm_data0$diabetes)
 
-# how many people have diabetes? 
-diabetes <- subset(data2, diabetes == 1)
-nrow(diabetes) / nrow(data2)
+ggplot(glm_data0, aes(x = diabetes, y = gender)) + geom_boxplot()
+ggplot(glm_data0, aes(x = diabetes, y = age)) + geom_boxplot()
+barplot(table(glm_data0$hypertension, glm_data0$diabetes), legend.text = TRUE, beside = TRUE, xlab = "Diabetes", ylab = "Count of Hypertension" )
+barplot(table(glm_data0$heart_disease, glm_data0$diabetes), legend.text = TRUE, beside = TRUE, xlab = "Diabetes", ylab = "Count of Heart Disease" )
+ggplot(glm_data0, aes(diabetes,..count..)) + geom_bar(aes(fill = smoking_history), position = "dodge")
+ggplot(glm_data0, aes(x = diabetes, y = bmi)) + geom_boxplot()
+ggplot(glm_data0, aes(x = diabetes, y = HbA1c_level)) + geom_boxplot()
+ggplot(glm_data0, aes(x = diabetes, y = blood_glucose_level)) + geom_boxplot()
 
-nodiabetes <- subset(data2, diabetes == 0)
-nrow(nodiabetes) / nrow(data2)
-
-data2 %>% 
-  group_by(diabetes) %>%
-  summarise_all(mean)
-
-# what does this look like? 
 ```
 
 ```{r}
-# first linear regression model : R^2 = 39.79
-model0 <- lm(diabetes ~., data=data2)
-summary(model0)
+# MULTICOLLINEARITY OR OUTLIERS? 
 
-# first (b) linear regression model - taking out blood glucose level : R^2 = 27.64
-model0b <- lm(diabetes ~ gender + age + hypertension + heart_disease + smoking_history + HbA1c_level + bmi, data=data2)
-summary(model0b)
+cordata <- subset(glm_other_data, select = -c(smoking_history, diabetes))
+corrplot(cor(cordata), method="square")
+round(cor(cordata),2)
+```
 
-# first (c) linear regression model - taking out hba2c instead of blood glucose : R^2 = 28.35
-model0c <- lm(diabetes ~ gender + age + hypertension + heart_disease + smoking_history + blood_glucose_level + bmi, data=data2)
-summary(model0c)
+```{r}
+# first logistic regression model - all variables 
+glm_model0 <- glm(diabetes ~., data=glm_data0, family=binomial)
+summary(glm_model0)
 
-# first (d) linear regression model - taking out smoking history : R^2 = 39.67
-model0d <- lm(diabetes ~ gender + age + hypertension + heart_disease + HbA1c_level + blood_glucose_level + bmi, data=data2)
-summary(model0d)
+step_model0 <- step(glm(diabetes ~., data=glm_data0, family=binomial), direction = "both")
 
-# second linear regression model : R^2 = 39.79
-model1 <- lm(diabetes ~., data=data2)
-summary(model1)
+step_model1 <- step(glm(diabetes ~., data=glm_data0, family=binomial), direction = "forward")
 
-# take out outliers with cooks distance 
-cooksD <- cooks.distance(model1)
-cooksD[which.max(cooksD)]
+step_model2 <- step(glm(diabetes ~., data=glm_data0, family=binomial), direction = "backward")
 
-# plotting cooksD line - FIRST VERSION w/ 4 standard deviations
-plot(cooksD, type="b", col="red")
-N = nrow(data2)
-df <- ncol(data2)
-cutoff = 4/(N - df)
-abline(h=cutoff, lty=2)
+# taking out smoking_history = "ever and former"
+glm_data1 <- subset(glm_data0, smoking_history != "ever" & smoking_history != "former")
 
-influential <- cooksD[cooksD > cutoff]
-names_of_influential <- names(influential)
+# second logistic regression model - reduced
+glm_model1 <- glm(diabetes ~., data=glm_data1, family=binomial)
+summary(glm_model1)
 
-# taking out outliers 
-temp <- data2[names_of_influential, ]
-data3 <- data2 %>% anti_join(temp)
+step_model3 <- step(glm(diabetes ~., data=glm_data1, family=binomial), direction = "both")
 
+step_model4 <- step(glm(diabetes ~., data=glm_data1, family=binomial), direction = "forward")
 
-# third linear regression model - cooksD0: R^2 = 37.3
-model2 <- lm(diabetes ~., data=data3)
-summary(model2)
+step_model5 <- step(glm(diabetes ~., data=glm_data1, family=binomial), direction = "backward")
 
-# plotting cooksD line - SECOND VERSION w/ 10 standard deviations
-plot(cooksD, type="b", col="red")
-N = nrow(data2)
-df <- ncol(data2)
-cutoff = 10/(N - df)
-abline(h=cutoff, lty=2)
+# taking out smoking history 
+glm_data2 <- subset(glm_data1, select = -c(smoking_history))
 
-influential <- cooksD[cooksD > cutoff]
-names_of_influential <- names(influential)
+glm_model2 <- glm(diabetes ~., data=glm_data2, family=binomial)
+summary(glm_model2)
 
-# taking out outliers 
-temp <- data2[names_of_influential, ]
-data3 <- data2 %>% anti_join(temp)
+BIC(glm_model0, glm_model1, glm_model2)
 
+# cooks distance? EVERYTHING OK
 
-# third linear regression model - cooksD0: R^2 = 40.55
-model3 <- lm(diabetes ~., data=data3)
-summary(model3)
+cook = cooks.distance(glm_model2)
+plot(cook, type="h", lwd=3, col="red", vlab = "Cook's Distance")
+
+# MULTICOLLINEARITY 
 
 library(car)
-par(mfrow=c(2,2))
-qqPlot(model2$residuals, ylab="Residuals")
-qqPlot(model3$residuals, ylab="Residuals")
-
+max(10, 1/(1-summary(glm_model2)$r.squared))
+vif(glm_model2)
 ```
+
 ```{r}
+# GOODNESS OF FIT 
 
-library(DHARMa)
+# hypothesis test - is the regression overall significant? 
+# test for significance on glm_model2 = 0
+1 - pchisq(glm_model2$null.deviance - glm_model2$deviance, glm_model2$df.null - glm_model2$df.residual)
 
-# goodness of fit of the model - normality, histo, residual v. x, residual v. fitted plots
-par(mfrow=c(2,2))
+# hypothesis tests for GOF 
 
-res <- simulateResiduals(model3)
-plot(res)
-plot(data3$diabetes, resid(model3), main="Predictor vs Residuals", ylab = "Model Residuals", xlab = "Diabetes")
-abline(0,0)
-plot(fitted(model3), resid(model3),main="Fitted vs Residuals", xlab="Fitted Values", ylab = "Model Residuals")
-abline(0,0)
-qqnorm(resid(model3), main="QQ-Plot of Residuals")
-qqline(resid(model3))
-hist(resid(model3),main="Histogram of Residuals", xlab = "Model Residuals")
+# deviance test for GOF
+c(deviance(glm_model2), 1 - pchisq(deviance(glm_model2),df.residual(glm_model2)))
+
+# pearson residuals gof
+pearres2 = residuals(glm_model2, type="pearson")
+pearson_tval = sum(pearres2^2)
+c(pearson_tval, 1 - pchisq(pearson_tval, 37419))
 ```
 
 ```{r}
 # SPLITTING DATA INTO TRAINING TEST 
 set.seed(123)
-sample <- sample(c(TRUE,FALSE), nrow(data3), replace=TRUE, prob=c(0.8, 0.2))
-train <- data3[sample,]
-test <- data3[!sample,]
-
+sample <- sample(c(TRUE,FALSE), nrow(glm_data2), replace=TRUE, prob=c(0.8, 0.2))
+train <- glm_data2[sample,]
+test <- glm_data2[!sample,]
 
 # TRAINING using third linear regression model - cooksD0: R^2 = 40.55
-train_model <- lm(diabetes ~., data=train)
+train_model <-  glm(diabetes ~ ., data=train, family=binomial)
 summary(train_model)
 
-# taking out heart disease b/c p-value > 0.01: R^2 = 40.54
-train_model1 <- lm(diabetes ~ gender + age + hypertension + smoking_history + bmi + HbA1c_level + blood_glucose_level, data=train)
-summary(train_model1)
+glm_pred <- predict(train_model, test, type="response")
 
-# qq plot for train_model1
-library(car)
-par(mfrow=c(2,2))
-qqPlot(train_model$residuals, ylab="Residuals")
-qqPlot(train_model1$residuals, ylab="Residuals")
+df <- data.frame(pred = glm_pred,
+                actuals = test$diabetes)
 
-```
+df
 
-```{r}
-
-# PREDICTING USING TRAIN_MODEL1
-pred0 <- predict(train_model1, newdata=test)
-
-lm_actual_pred <- data.frame(cbind(actuals=test$diabetes, predictions=pred0, diff = abs(test$diabetes - pred0)))
-head(lm_actual_pred)
-summary(lm_actual_pred)
-
-plot(lm_actual_pred$predictions, lm_actual_pred$actuals, xlab = "Predicted", ylab = "Observed", main="Linear Regression Prediction Performance")
-abline(a=0, b=1)
-```
-```{r}
-# GOING BACK TO CHANGING LINEAR MODEL - ADDING SECOND ORDER & INTERACTION 
-
-# fourth linear regression model - second order: R^2 = 41.2
-model4 <- lm(diabetes ~ gender + age + hypertension + smoking_history + bmi + HbA1c_level + blood_glucose_level + heart_disease + (hypertension)^2 + (HbA1c_level)^2 + (hypertension)*(HbA1c_level), data=data3)
-summary(model4)
-
-# fifth linear regression model - taking out heart disease again: R^2 = 41.23
-model5 <- lm(diabetes ~ gender + age + hypertension + smoking_history + bmi + HbA1c_level + blood_glucose_level + (hypertension)^2 + (HbA1c_level)^2 + (hypertension)*(HbA1c_level), data=data3)
-summary(model5)
-
-# TRAINING USING FIFTH LINEAR MODEL 
-train_model2 <- lm(diabetes ~ gender + age + hypertension + smoking_history + bmi + HbA1c_level + blood_glucose_level + (hypertension)^2 + (HbA1c_level)^2 + (hypertension)*(HbA1c_level), data=train)
-summary(train_model2)
-```
-
-```{r}
-# LINEAR MODEL - STEPWISE REGRESSION
-step_model <- step(lm(diabetes~., data=data3), direction="forward")
-step_model2 <- step(lm(diabetes~., data=data3), direction="backward")
-step_model3 <- step(lm(diabetes~., data=data3), direction="both")
-
-# models showed no change - included all variables
-# AIC = -190903.4 -> be sure to mention why negative AIC isn't bad in the paper
-
-```
-
-
-
-
-
-```{r}
-# # Plot residuals
-# lm_residuals <- abs(lm_pred - test$chol_mg_dl)
-# rf_residuals <- abs(chol_rf_pred - test$chol_mg_dl)
-# plot(test$chol_mg_dl, lm_residuals, col = "red", xlab = "TC", ylab = "Residuals", main = "Residuals of Linear Regression vs. Random Forest")
-# points(test$chol_mg_dl, rf_residuals, col = "green")
+# 12.83% of people with diabetes in original dataset 
+# 10.01% of people with diabetes in OUR prediction
+# diab <- subset(glm_data2, diabetes == 1)
+# nrow(diab)
+# nrow(glm_data2)
 # 
-# together <- data.frame(lm_pred, chol_rf_pred, test$chol_mg_dl, lm_residuals, rf_residuals)
-# lm_better <- subset(together, lm_residuals < rf_residuals)
-# nrow(lm_better)
-# rf_better <- subset(together, lm_residuals > rf_residuals)
-# nrow(rf_better)
-# 
-# head(together)
-# 
-# legend("top", legend = c("Linear Regression", "Random Forest"), col = c("red", "green"), pch=1, inset=0, xpd = TRUE, y.intersp = 1)
+# over_50 <- subset(df, pred > 0.5)
+# nrow(over_50)
+
+df$actual_pred <- ifelse(df$pred >= 0.5, 1, 0)
+head(df)
+```
+
+```{r}
+# >= 0.5: 
+# Accuracy: 0.9433554 
+# Precision: 0.8815612 
+# Recall: 0.6643002 
+# F1 Score: 0.7576634
+
+df$actual_pred <- ifelse(df$pred >= 0.5, 1, 0)
+head(df)
+
+conf_matrix <- table(df$actuals, df$actual_pred)
+
+# Calculate accuracy
+accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
+cat("Accuracy:", accuracy, "\n")
+
+# Calculate precision
+precision <- conf_matrix[2, 2] / sum(conf_matrix[, 2])
+cat("Precision:", precision, "\n")
+
+# Calculate recall (sensitivity)
+recall <- conf_matrix[2, 2] / sum(conf_matrix[2, ])
+cat("Recall:", recall, "\n")
+
+# Calculate F1-score
+f1_score <- 2 * (precision * recall) / (precision + recall)
+cat("F1 Score:", f1_score, "\n")
 ```
 
 
-```{r}
-# how many people have diabetes? 
-diabetes <- subset(data3, diabetes == 1)
-nrow(diabetes) / nrow(data3)
-nodiabetes <- subset(data3, diabetes == 0)
-nrow(nodiabetes) / nrow(data3)
-```
 
 
 
 
-```{r}
-
-# visualizing data against response variable 
-par(mfrow = c(2,2))
-boxplot(data2$diabetes, data2$gender, main="Gender Against Diabetes", xlab="Gender", ylab="Diabetes")
-boxplot(data2$age,data2$diabetes, main="Age Against Diabetes", xlab="Age", ylab="Diabetes")
-boxplot(data2$hypertension, data2$diabetes,main="Hypertension Against Diabetes", xlab="Hypertension", ylab="Diabetes")
-boxplot(data2$heart_disease,data2$diabetes, main="Heart Disease Against Diabetes", xlab="Heart Disease", ylab="Diabetes")
-boxplot(data2$smoking_history,data2$diabetes, main="Smoking History Against Diabetes", xlab="Smoking History", ylab="Diabetes")
-boxplot(data2$bmi,data2$diabetes, main="BMI Against Diabetes", xlab="BMI", ylab="Diabetes")
-boxplot(data2$HbA1c_level,data2$diabetes, main="HbA1c Against Diabetes", xlab="Hba1c", ylab="Diabetes")
-boxplot(data2$blood_glucose_level, data2$diabetes,main="Blood Glucose Level Against Diabetes", xlab="Blood Glucose Level", ylab="Diabetes")
 
 
-# visualizing predictors against each other 
+
+
+
 ```
