@@ -36,7 +36,7 @@ glm_data0$age_group <- factor(glm_data0$age_group, labels=c("30-39", "40-49", "5
 # taking out smoking_history = "no info"
 glm_data0 <- subset(glm_data0, smoking_history != "No Info")
 
-glm_data0 <- subset(glm_data0, select = -c(age))
+glm_data0 <- subset(glm_data0, select = -c(age_group))
 
 
 head(glm_data0)
@@ -59,7 +59,7 @@ ggplot(glm_data0, aes(x = diabetes, y = gender)) + geom_boxplot()
 ggplot(glm_data0, aes(x = diabetes, y = age)) + geom_boxplot()
 barplot(table(glm_data0$hypertension, glm_data0$diabetes), legend.text = TRUE, beside = TRUE, xlab = "Diabetes", ylab = "Count of Hypertension" )
 barplot(table(glm_data0$heart_disease, glm_data0$diabetes), legend.text = TRUE, beside = TRUE, xlab = "Diabetes", ylab = "Count of Heart Disease" )
-ggplot(glm_data0, aes(diabetes,..count..)) + geom_bar(aes(fill = age_group), position = "dodge")
+# ggplot(glm_data0, aes(diabetes,..count..)) + geom_bar(aes(fill = age_group), position = "dodge")
 ggplot(glm_data0, aes(diabetes,..count..)) + geom_bar(aes(fill = smoking_history), position = "dodge")
 ggplot(glm_data0, aes(x = diabetes, y = bmi)) + geom_boxplot()
 ggplot(glm_data0, aes(x = diabetes, y = HbA1c_level)) + geom_boxplot()
