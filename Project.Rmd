@@ -7,27 +7,6 @@ output: html_document
 
 ```{r}
 
-# STRUCTURE: 
-# 1. data description 
-# 2. pre-preprocessing data
-# 3. visuals (histograms and boxplots)
-# 4. multicollinearity plot
-# 5. model fitting
-# 6. cook's distance (outliers)
-# 7. model comparisons (AIC, BIC, variable significance)
-# 8. goodness of fit (overall, pearson, deviance)
-# 9. multicollinearity (w/ our final model)
-# 10. prediction 
-# 11. interpret prediction
-# 
-# # THINGS TO ADD 
-# - COOKS DISTANCE
-
-```
-
-
-```{r}
-
 ############ DATA DESCRIPTION ############
 
 library(dplyr)
@@ -43,8 +22,22 @@ glm_data0$smoking_history <- factor(glm_data0$smoking_history)
 # subset data to 40 and older
 glm_data0 <- subset(glm_data0, age >= 30)
 
+glm_other_data <- glm_data0
+# recoding age into age group
+glm_data0$age_group <- ifelse(glm_data0$age < 40, "30-39", 
+                              ifelse(glm_data0$age < 50, "40-49", 
+                                 ifelse(glm_data0$age < 60, "50-59",
+                                        ifelse(glm_data0$age < 70, "60-69",
+                                               "70-80"
+                              ))))
+
+glm_data0$age_group <- factor(glm_data0$age_group, labels=c("30-39", "40-49", "50-59", "60-69", "70+"))
+
 # taking out smoking_history = "no info"
 glm_data0 <- subset(glm_data0, smoking_history != "No Info")
+
+glm_data0 <- subset(glm_data0, select = -c(age))
+
 
 head(glm_data0)
 summary(glm_data0)
@@ -66,10 +59,21 @@ ggplot(glm_data0, aes(x = diabetes, y = gender)) + geom_boxplot()
 ggplot(glm_data0, aes(x = diabetes, y = age)) + geom_boxplot()
 barplot(table(glm_data0$hypertension, glm_data0$diabetes), legend.text = TRUE, beside = TRUE, xlab = "Diabetes", ylab = "Count of Hypertension" )
 barplot(table(glm_data0$heart_disease, glm_data0$diabetes), legend.text = TRUE, beside = TRUE, xlab = "Diabetes", ylab = "Count of Heart Disease" )
+ggplot(glm_data0, aes(diabetes,..count..)) + geom_bar(aes(fill = age_group), position = "dodge")
 ggplot(glm_data0, aes(diabetes,..count..)) + geom_bar(aes(fill = smoking_history), position = "dodge")
 ggplot(glm_data0, aes(x = diabetes, y = bmi)) + geom_boxplot()
 ggplot(glm_data0, aes(x = diabetes, y = HbA1c_level)) + geom_boxplot()
 ggplot(glm_data0, aes(x = diabetes, y = blood_glucose_level)) + geom_boxplot()
+
+# plotting shape of each variable 
+par(mfrow=c(2,2))
+hist(glm_other_data$gender, main = "Histogram of Gender")
+hist(glm_other_data$age, main = "Histogram of age")
+hist(glm_other_data$hypertension, main = "Histogram of hypertension")
+hist(glm_other_data$heart_disease, main = "Histogram of heart_disease")
+hist(glm_other_data$bmi, main = "Histogram of bmi")
+hist(glm_other_data$HbA1c_level, main = "Histogram of HbA1c_level")
+hist(glm_other_data$blood_glucose_level, main = "Histogram of blood_glucose_level")
 
 ```
 
@@ -82,7 +86,7 @@ round(cor(cordata),2)
 ```
 
 ```{r}
-# first logistic regression model - all variables 
+# first logistic regression model - all variables
 glm_model0 <- glm(diabetes ~., data=glm_data0, family=binomial)
 summary(glm_model0)
 
@@ -113,16 +117,11 @@ summary(glm_model2)
 
 BIC(glm_model0, glm_model1, glm_model2)
 
-# cooks distance? EVERYTHING OK
-
-cook = cooks.distance(glm_model2)
-plot(cook, type="h", lwd=3, col="red", vlab = "Cook's Distance")
-
 # MULTICOLLINEARITY 
 
 library(car)
-max(10, 1/(1-summary(glm_model2)$r.squared))
-vif(glm_model2)
+max(10, 1/(1-summary(glm_model0)$r.squared))
+vif(glm_model0)
 ```
 
 ```{r}
@@ -140,7 +139,7 @@ c(deviance(glm_model2), 1 - pchisq(deviance(glm_model2),df.residual(glm_model2))
 # pearson residuals gof
 pearres2 = residuals(glm_model2, type="pearson")
 pearson_tval = sum(pearres2^2)
-c(pearson_tval, 1 - pchisq(pearson_tval, 37419))
+c(pearson_tval, 1 - pchisq(pearson_tval, 38416))
 ```
 
 ```{r}
@@ -175,12 +174,6 @@ head(df)
 ```
 
 ```{r}
-# >= 0.5: 
-# Accuracy: 0.9433554 
-# Precision: 0.8815612 
-# Recall: 0.6643002 
-# F1 Score: 0.7576634
-
 df$actual_pred <- ifelse(df$pred >= 0.5, 1, 0)
 head(df)
 
@@ -202,8 +195,6 @@ cat("Recall:", recall, "\n")
 f1_score <- 2 * (precision * recall) / (precision + recall)
 cat("F1 Score:", f1_score, "\n")
 ```
-
-
 
 
 
