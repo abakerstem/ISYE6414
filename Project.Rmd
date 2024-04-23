@@ -54,13 +54,15 @@ library(dplyr)
 
 par(mfrow = c(1,2))
 glm_data0$diabetes <- factor(glm_data0$diabetes)
+glm_data0$hypertension <- factor(glm_data0$hypertension)
+glm_data0$heart_disease <- factor(glm_data0$heart_disease)
 
 ggplot(glm_data0, aes(x = diabetes, y = gender)) + geom_boxplot()
 ggplot(glm_data0, aes(x = diabetes, y = age)) + geom_boxplot()
 barplot(table(glm_data0$hypertension, glm_data0$diabetes), legend.text = TRUE, beside = TRUE, xlab = "Diabetes", ylab = "Count of Hypertension" )
 barplot(table(glm_data0$heart_disease, glm_data0$diabetes), legend.text = TRUE, beside = TRUE, xlab = "Diabetes", ylab = "Count of Heart Disease" )
 # ggplot(glm_data0, aes(diabetes,..count..)) + geom_bar(aes(fill = age_group), position = "dodge")
-ggplot(glm_data0, aes(diabetes,..count..)) + geom_bar(aes(fill = smoking_history), position = "dodge")
+ggplot(glm_data0, aes(diabetes,..count../sum(..count..))) + geom_bar(aes(fill = smoking_history), position = "dodge") + ylab("Relative Percentage")
 ggplot(glm_data0, aes(x = diabetes, y = bmi)) + geom_boxplot()
 ggplot(glm_data0, aes(x = diabetes, y = HbA1c_level)) + geom_boxplot()
 ggplot(glm_data0, aes(x = diabetes, y = blood_glucose_level)) + geom_boxplot()
@@ -76,6 +78,19 @@ hist(glm_other_data$HbA1c_level, main = "Histogram of HbA1c_level")
 hist(glm_other_data$blood_glucose_level, main = "Histogram of blood_glucose_level")
 
 ```
+
+```{r}
+# Calculate relative percentages
+table_data <- prop.table(table(glm_data0$hypertension, glm_data0$diabetes), margin = 2) * 100
+other_data <- prop.table(table(glm_data0$heart_disease, glm_data0$diabetes), margin = 2) * 100
+par(mfrow = c(1,2))
+
+# Plot barplot with relative percentages
+barplot(table_data, beside = TRUE, legend.text = TRUE, xlab = "Diabetes", ylab = "Percentage of Hypertension")
+barplot(other_data, beside = TRUE, legend.text = TRUE, xlab = "Diabetes", ylab = "Percentage of Heart Disease")
+
+```
+
 
 ```{r}
 # MULTICOLLINEARITY OR OUTLIERS? 
@@ -126,20 +141,21 @@ vif(glm_model0)
 
 ```{r}
 # GOODNESS OF FIT 
+summary(glm_model1)
 
 # hypothesis test - is the regression overall significant? 
 # test for significance on glm_model2 = 0
-1 - pchisq(glm_model2$null.deviance - glm_model2$deviance, glm_model2$df.null - glm_model2$df.residual)
+1 - pchisq(glm_model1$null.deviance - glm_model1$deviance, glm_model1$df.null - glm_model1$df.residual)
 
 # hypothesis tests for GOF 
 
 # deviance test for GOF
-c(deviance(glm_model2), 1 - pchisq(deviance(glm_model2),df.residual(glm_model2)))
+c(deviance(glm_model1), 1 - pchisq(deviance(glm_model1),df.residual(glm_model1)))
 
 # pearson residuals gof
-pearres2 = residuals(glm_model2, type="pearson")
+pearres2 = residuals(glm_model1, type="pearson")
 pearson_tval = sum(pearres2^2)
-c(pearson_tval, 1 - pchisq(pearson_tval, 38416))
+c(pearson_tval, 1 - pchisq(pearson_tval, 37417))
 ```
 
 ```{r}
